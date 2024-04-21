@@ -16,7 +16,15 @@ const app = express();
 // Middleware to parse incoming JSON requests
 app.use(bodyParser.json());
 
-app.use(cors({ credentials: true, origin: 'http://localhost:3000' }));
+//app.use(cors({ credentials: true, origin: 'http://localhost:3000' }));
+app.use(cors(
+  {
+    origin: {"https://mernproject.vercel.app"},
+    methods: ["POST","GET"]
+    credentials: true
+}
+));
+  
 app.use(express.json());
 app.use(cookieparser());
 
