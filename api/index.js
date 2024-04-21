@@ -19,7 +19,7 @@ app.use(bodyParser.json());
 //app.use(cors({ credentials: true, origin: 'http://localhost:3000' }));
 app.use(cors(
   {
-    origin: {"https://mernproject.vercel.app"},
+    origin: {"https://mern-project-pi-amber.vercel.app"},
     methods: ["POST","GET"]
     credentials: true
 }
