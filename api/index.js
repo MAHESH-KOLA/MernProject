@@ -11,7 +11,7 @@ const mongoose = require('mongoose');
 const User = require('./models/User');
 const Post = require('./models/Post')
 const app = express();
-
+const port = process.env.PORT || 4000;
 
 // Middleware to parse incoming JSON requests
 app.use(bodyParser.json());
@@ -420,4 +420,8 @@ app.get('/post/:id/comments', async (req, res) => {
 });
     
 
-app.listen(4000);
+
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});
+
