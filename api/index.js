@@ -9,26 +9,21 @@ const cookieparser = require('cookie-parser');
 const fs = require('fs');
 const mongoose = require('mongoose');
 const User = require('./models/User');
-const Post = require('./models/Post')
+const Post = require('./models/Post');
+const dotenv = require('dotenv');
+
 const app = express();
-const port = process.env.PORT || 4000;
+dotenv.config();
 
 // Middleware to parse incoming JSON requests
 app.use(bodyParser.json());
 
-//app.use(cors({ credentials: true, origin: 'http://localhost:3000' }));
-app.use(cors({
-  origin: "https://mern-project-pi-amber.vercel.app",
-  methods: ["POST", "GET"],
-  credentials: true
-}));
-
+app.use(cors());
 app.use(express.json());
-app.use(cookieparser());
+//app.use(cookieparser());
 
 
 const salt = bcrypt.genSaltSync(10);
-const secret = 'tfgxsnsui56b3dbc839udjndb389odjmcn';
 
 // Middleware for handling file uploads (using multer)
 // const uploadmiddleware = multer({ dest: 'uploads/' });
@@ -37,49 +32,71 @@ app.use('/uploads',express.static(__dirname + '/uploads/'))
 
 
 
+    
 
-//mongodb://127.0.0.1:27017/educonnect
-mongoose.connect('mongodb+srv://mahesh:mahesh_kola@mernproject.mkpcitd.mongodb.net/educonnect')
+mongoose.connect(process.env.MONGO_URL)
 .then(()=>{
-  console.log("successfully connected to database");
+  console.log("database connected successully");
 })
-.catch(()=>{
-  console.log("error");
+.catch((err)=>{
+  console.log("error in connecting to the database: ", err);
 })
 
-app.post('/register' , async (req,res) => {
-    // res.send(req.body);
-    const {firstname,email,password} = req.body;
-    console.log(password);
-    try{
-        const userdoc = await User.create({firstname,email,
-            password:bcrypt.hashSync(password,salt)});
-        console.log(userdoc);
-        res.json(userdoc); 
-    }catch(e){ 
-        res.json(e);
-    } 
-})
+
+
+
+
+
+app.post('/register', async (req, res) => {
+  const { firstname, email, password } = req.body;
+
+  // Check if the password meets the minimum length requirement
+  if (password.length < 8) {
+      return res.status(400).json({ error: 'Password should be minimum of 8 characters' });
+  }
+
+  try {
+      // Check if the firstname already exists in the database
+      const existingUser = await User.findOne({ firstname });
+      if (existingUser) {
+          return res.status(400).json({ error: 'Firstname must be unique' });
+      }
+
+      // If firstname is unique, create the new user
+      const userdoc = await User.create({
+          firstname,
+          email,
+          password: bcrypt.hashSync(password, salt)
+      });
+
+      console.log(userdoc);
+
+     // console.log("User registered successfully");
+     // console.log(password);
+      res.json(userdoc);
+  } catch (e) {
+      console.error("Error registering user:", e);
+      res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 
 
 app.post('/login', async (req,res)  => {
     const {email,password} = req.body;
-    console.log(email);
-    console.log(password);
+   //console.log(email);
+   //console.log(password)
     try{
         const userdoc = await User.findOne({email:email});
         
-        console.log(userdoc);
-        console.log("hii");
+      
         if(!userdoc){
             return res.status(400).json("User Not Found");
         }
-        // console.log("hello");  
-        // console.log(userdoc);
         const ok = bcrypt.compareSync(password,userdoc.password);
         console.log(ok);
         if(ok){
-            jwt.sign({email, id : userdoc._id} , secret , {} , (err, token) => {
+            jwt.sign({email, id : userdoc._id} , process.env.SECRET , {} , (err, token) => {
                     if(err) throw err;
                     res.cookie('token', token).json({
                         id:userdoc.id,
@@ -104,7 +121,7 @@ app.get('/profile', async (req, res) => {
             return res.status(401).json("Token not provided");
         }
 
-        const info = await jwt.verify(token, secret);
+        const info = await jwt.verify(token, process.env.SECRET);
 
         if (!info || !info.id) {
             return res.status(401).json("Invalid token");
@@ -136,45 +153,6 @@ app.post('/logout' , (req,res) => {
    })
 
 
-// app.post('/upload',(req,res) => {
-//     console.log(req.body);
-    
-//     res.status(200).json(req.body);
-
-// })
-
-
-
-
-// Route for handling the POST request from the form
-// app.post('/upload', upload.single('file'), async (req, res) => {
-//     const imagePath = req.file.path;
-    
-//     const {token} = req.cookies;
-//     jwt.verify(token,secret, {} , async (err,info) => {
-//         if(err) throw err;
-//         const { title, tags, description, content, link, sourcecode } = req.body;
-//         const postdoc =  await Post.create({
-//              title,
-//              tags,
-//              description,
-//              content,
-//              link,
-//              sourcecode,
-//              cover:imagePath,
-//              author:info.id
-//          })
-//         // res.json(info);
-//         res.json(postdoc);
-//     })
- 
-    
-
-   
-   
-// });
-
-// Set your destination folder
 
 app.post('/upload', upload.single('image'), async (req, res) => {
   try {
@@ -191,7 +169,7 @@ app.post('/upload', upload.single('image'), async (req, res) => {
         return res.status(401).json({ error: 'Token not provided' });
         }
 
-    jwt.verify(token, secret, {}, async (err, info) => {
+    jwt.verify(token, process.env.SECRET, {}, async (err, info) => {
       if (err) throw err;
 
       const { title, tags, description, content, link, sourcecode } = req.body;
@@ -262,21 +240,13 @@ app.put('/post/:id/upvote', async (req, res) => {
   
   app.put('/post', upload.single('file'), async (req, res) => {
     try {
-      // File Upload Handling
-      // console.log(req.file);
-      // const { originalname, path } = req.file;
-      // const parts = originalname.split('.');
-      // const ext = parts[parts.length - 1];
-      // const newpath = path + '.' + ext;
-      // fs.renameSync(path, newpath);
-      // console.log(newpath);
-      // Token Verification
+
       const { token } = req.cookies;
       if (!token) {
         return res.status(401).json({ error: 'Token not provided' });
       }
   
-      jwt.verify(token, secret, {}, async (err, info) => {
+      jwt.verify(token, process.env.SECRET, {}, async (err, info) => {
         if (err) {
           throw err;
         }
@@ -343,7 +313,7 @@ app.delete('/post/:postId', async (req, res) => {
         if (!token) {
             return res.status(401).json("Token not provided");
         }
-        const info = await jwt.verify(token, secret);
+        const info = await jwt.verify(token, process.env.SECRET);
         // console.log(info.id);
         try {
           // Assuming the Post model has an 'author' field
@@ -420,8 +390,6 @@ app.get('/post/:id/comments', async (req, res) => {
 });
     
 
-
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+app.listen(process.env.PORT || 4000, () => {
+  console.log('Server is running on port', process.env.PORT || 4000);
 });
-
