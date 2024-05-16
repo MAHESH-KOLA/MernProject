@@ -18,9 +18,9 @@ dotenv.config();
 // Middleware to parse incoming JSON requests
 app.use(bodyParser.json());
 
-app.use(cors());
+app.use(cors({ credentials: true, origin: 'http://localhost:3000' }));
 app.use(express.json());
-//app.use(cookieparser());
+app.use(cookieparser());
 
 
 const salt = bcrypt.genSaltSync(10);
@@ -391,5 +391,5 @@ app.get('/post/:id/comments', async (req, res) => {
     
 
 app.listen(process.env.PORT || 4000, () => {
-  console.log('Server is running on port', process.env.PORT || 4000);
+  console.log('Server is running on port', process.env.PORT || 3000);
 });
